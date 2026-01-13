@@ -1,9 +1,6 @@
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
+# Custom Save Restricted Bot
 
-
-HELP_TXT = """<b>🛠 𝐇𝐨𝐰 𝐓𝐨 𝐔𝐬𝐞 𝐌𝐞 - 𝐂𝐨𝐦𝐦𝐚𝐧 𝐝 𝐆𝐮𝐢𝐝𝐞</b>
+HELP_TXT = """<b>🛠 𝐇𝐨𝐰 𝐓𝐨 𝐔𝐬𝐞 𝐌𝐞 - 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐆𝐮𝐢𝐝𝐞</b>
 
 <b>👤 𝐔𝐬𝐞𝐫 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 
@@ -19,7 +16,7 @@ Get this help message with detailed instructions.
 Login to your Telegram account using a session string.
 <i>Usage: /login</i></blockquote>
 
-<blockquote><b>🚪 /logout</b>
+<blockquote><b>🚺 /logout</b>
 Logout from the current session.
 <i>Usage: /logout</i></blockquote>
 
@@ -84,9 +81,6 @@ View premium plan details and pricing.
 <i>Usage: /premium</i></blockquote>
 
 <b>🛠 𝐀𝐝𝐦𝐢𝐧 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
 
 <blockquote><b>🚫 /ban</b>
 Ban a user from using the bot.
@@ -164,11 +158,3 @@ COMMANDS_TXT = """<b>📜 Available Commands</b>
     <b>/users</b> - <i>Total Users</i>
     <b>/premium_users</b> - <i>Total Active Premium Users</i></blockquote>
     """
-
-# Dont remove Credits
-# Developer Telegram @RexBots_Official
-# Update channel - @RexBots_Official
-
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
