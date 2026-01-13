@@ -1,11 +1,9 @@
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
+# Custom Save Restricted Bot
 
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from database.db import db
-from config import ERROR_MESSAGE, ADMINS
+from config import ERROR_MESSAGE, ADMINS, ADMIN_USERNAME
 import datetime
 import asyncio
 from logger import LOGGER
@@ -36,17 +34,43 @@ async def myplan(client: Client, message: Message):
 @Client.on_message(filters.command("premium") & filters.private)
 async def buy_premium(client: Client, message: Message):
     text = (
-        "**💎 RexBots Premium Plans**\n\n"
-        "• **Fastest Download Speed**\n"
-        "• **Priority Support**\n"
-        "• **No Cooldowns**\n"
-        "• **Custom Caption & Thumbnail**\n\n"
-        "**💲 Pricing:**\n"
-        "• 1 Month: $5\n"
-        "• 1 Year: $40\n\n"
-        "**Contact Admin to Buy:** @RexBots_Official"
+        "<b>💎 Premium Plans - Unlimited Access!</b>\n\n"
+        "<blockquote><b>✨ Premium Benefits:</b>\n"
+        "<b>• ♾️ Unlimited Downloads</b>\n"
+        "<b>• ⚡ Fastest Download Speed</b>\n"
+        "<b>• 📦 Batch/Bulk Download</b>\n"
+        "<b>• 📝 Custom Caption & Thumbnail</b>\n"
+        "<b>• 🚀 Priority Support</b>\n"
+        "<b>• 🚫 No Cooldowns</b></blockquote>\n\n"
+        "<b>💰 Pricing (India):</b>\n"
+        "<blockquote>📌 <b>1 Month</b> - ₹99\n"
+        "📌 <b>3 Months</b> - ₹249 <i>(Save 17%)</i>\n"
+        "📌 <b>6 Months</b> - ₹449 <i>(Save 25%)</i>\n"
+        "📌 <b>1 Year</b> - ₹799 <i>(Save 33%)</i></blockquote>\n\n"
+        f"<b>💳 Payment Methods:</b>\n"
+        "<blockquote>• UPI / PhonePe / Paytm\n"
+        "• Google Pay / BHIM\n"
+        "• Bank Transfer</blockquote>\n\n"
+        f"<b>👤 Contact Admin:</b> {ADMIN_USERNAME}\n\n"
+        "<blockquote><b>⚠️ How to Buy:</b>\n"
+        f"1️⃣ Message {ADMIN_USERNAME}\n"
+        "2️⃣ Choose your plan\n"
+        "3️⃣ Make payment via UPI\n"
+        "4️⃣ Send payment screenshot\n"
+        "5️⃣ Get instant premium activation! 🎉</blockquote>"
     )
-    await message.reply_text(text)
+    
+    # Button to contact admin
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("💬 Contact Admin", url=f"https://t.me/{ADMIN_USERNAME.replace('@', '')}")
+        ],
+        [
+            InlineKeyboardButton("❌ Close", callback_data="close_btn")
+        ]
+    ])
+    
+    await message.reply_text(text, reply_markup=buttons, parse_mode="html")
 
 # --- Admin Commands ---
 
@@ -54,9 +78,6 @@ async def buy_premium(client: Client, message: Message):
 async def add_premium_cmd(client: Client, message: Message):
     if len(message.command) < 3:
         return await message.reply_text("**Usage:** `/add_premium user_id days`")
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
     
     try:
         user_id = int(message.command[1])
@@ -64,10 +85,16 @@ async def add_premium_cmd(client: Client, message: Message):
         expiry_date = datetime.datetime.now() + datetime.timedelta(days=days)
         
         await db.add_premium(user_id, expiry_date.isoformat())
-        await message.reply_text(f"**User {user_id} added to Premium for {days} days.**")
+        await message.reply_text(f"✅ **User `{user_id}` added to Premium for {days} days.**\n\n**Expiry:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S')}`")
         
         try:
-            await client.send_message(user_id, f"**🎉 Congratulations! You have been upgraded to Premium for {days} days.**")
+            await client.send_message(
+                user_id, 
+                f"🎉 **Congratulations!**\n\n"
+                f"You have been upgraded to **Premium** for **{days} days**.\n\n"
+                f"✨ Enjoy unlimited downloads and premium features!\n\n"
+                f"**Expiry:** `{expiry_date.strftime('%Y-%m-%d %H:%M:%S')}`"
+            )
         except:
             pass
             
@@ -83,10 +110,10 @@ async def remove_premium_cmd(client: Client, message: Message):
     try:
         user_id = int(message.command[1])
         await db.remove_premium(user_id)
-        await message.reply_text(f"**User {user_id} removed from Premium.**")
+        await message.reply_text(f"✅ **User `{user_id}` removed from Premium.**")
         
         try:
-            await client.send_message(user_id, "**❌ Your Premium Plan has been revoked by Admin.**")
+            await client.send_message(user_id, "❌ **Your Premium Plan has been revoked by Admin.**")
         except:
             pass
 
@@ -105,9 +132,7 @@ async def premium_users_list(client: Client, message: Message):
     
     if count == 0:
         text += "No premium users found."
+    else:
+        text += f"\n**Total Premium Users:** {count}"
         
     await message.reply_text(text)
-
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
