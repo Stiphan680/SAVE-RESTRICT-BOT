@@ -1,4 +1,4 @@
-# Custom Save Restricted Bot - Built-in Session Generator
+# Custom Save Restricted Bot - Built-in Session Generator with OTP Resend
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
@@ -9,6 +9,7 @@ from pyrogram.errors import (
 from database.db import db
 from config import API_ID, API_HASH
 import asyncio
+import time
 from logger import LOGGER
 
 logger = LOGGER(__name__)
@@ -22,6 +23,8 @@ class LoginState:
         self.phone_code_hash = None
         self.client = None
         self.step = "phone"  # phone, code, password, done
+        self.code_sent_time = None
+        self.resend_count = 0
 
 # --- Login Command ---
 
@@ -48,21 +51,23 @@ async def login_command(client: Client, message: Message):
     login_states[user_id] = LoginState()
     
     await message.reply_text(
-        "🔐 **Login to Your Telegram Account**\n\n"
-        "**Step 1/3:** Send your phone number with country code\n\n"
-        "📱 **Format:** `+919876543210`\n"
-        "🌍 **Example:** `+1234567890` (USA), `+919876543210` (India)\n\n"
+        "🔐 **Easy Login - Step 1**\n\n"
+        "📱 Send your phone number with country code\n\n"
+        "**Examples:**\n"
+        "• India: `+919876543210`\n"
+        "• USA: `+1234567890`\n"
+        "• UK: `+441234567890`\n\n"
         "⚠️ **Important:**\n"
-        "• Include country code (+91 for India)\n"
-        "• No spaces or special characters\n"
-        "• This is safe - we don't store your password\n\n"
-        "💡 **Tip:** Use /cancel to stop login process anytime.",
+        "• Start with `+` and country code\n"
+        "• No spaces or dashes\n"
+        "• Your data is safe & encrypted\n\n"
+        "💡 Use /cancel anytime to stop",
         parse_mode="markdown"
     )
 
-# --- Handle Phone Number ---
+# --- Handle Login Steps ---
 
-@Client.on_message(filters.private & filters.text & ~filters.command(["start", "help", "cancel", "logout"]))
+@Client.on_message(filters.private & filters.text & ~filters.command(["start", "help", "cancel", "logout", "premium", "myplan"]))
 async def handle_login_steps(client: Client, message: Message):
     user_id = message.from_user.id
     
@@ -77,14 +82,18 @@ async def handle_login_steps(client: Client, message: Message):
         phone = message.text.strip()
         
         # Validate phone format
-        if not phone.startswith("+"):
+        if not phone.startswith("+") or len(phone) < 10:
             return await message.reply_text(
                 "❌ **Invalid Format!**\n\n"
-                "Phone number must start with country code.\n\n"
+                "Phone number must:\n"
+                "• Start with `+` and country code\n"
+                "• Be at least 10 digits\n\n"
                 "📱 **Example:** `+919876543210`\n\n"
-                "Try again or use /cancel to stop.",
+                "🔄 Try again or use /cancel",
                 parse_mode="markdown"
             )
+        
+        status_msg = await message.reply_text("⏳ Sending OTP code...")
         
         try:
             # Create temporary client
@@ -104,45 +113,69 @@ async def handle_login_steps(client: Client, message: Message):
             state.phone_code_hash = sent_code.phone_code_hash
             state.client = temp_client
             state.step = "code"
+            state.code_sent_time = time.time()
             
-            await message.reply_text(
+            # Create resend button
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Resend OTP", callback_data=f"resend_otp_{user_id}")]
+            ])
+            
+            await status_msg.edit_text(
                 "✅ **OTP Sent Successfully!**\n\n"
-                "**Step 2/3:** Enter the OTP code\n\n"
-                f"📱 Check Telegram messages on **{phone}**\n"
-                "📧 Or check SMS if you're using a different device\n\n"
-                "⏰ **You have 2-3 minutes** to enter the code\n\n"
-                "💡 **Tip:** Code format: `12345` (just numbers, no spaces)",
+                "📝 **Step 2:** Enter the OTP code\n\n"
+                f"📱 Check Telegram on **{phone}**\n"
+                "📧 Or check SMS on your device\n\n"
+                "⏰ **You have 3-5 minutes**\n\n"
+                "💡 **Just send the code:**\n"
+                "Example: `12345` (only numbers)\n\n"
+                "⚠️ If code doesn't arrive, click Resend below",
+                reply_markup=buttons,
                 parse_mode="markdown"
             )
             
         except PhoneNumberInvalid:
-            await message.reply_text(
+            await status_msg.edit_text(
                 "❌ **Invalid Phone Number!**\n\n"
-                "Please check:\n"
+                "Please verify:\n"
                 "• Correct country code?\n"
-                "• Number is active?\n"
+                "• Active Telegram number?\n"
                 "• Format: `+919876543210`\n\n"
-                "Try again or /cancel to stop.",
+                "🔄 Send correct number or /cancel",
                 parse_mode="markdown"
             )
         except FloodWait as e:
-            await message.reply_text(
-                f"⏳ **Too Many Attempts!**\n\n"
-                f"Please wait **{e.value} seconds** and try again.\n\n"
-                "Use /cancel and then /login after waiting.",
+            await status_msg.edit_text(
+                f"⏳ **Rate Limit!**\n\n"
+                f"Too many attempts. Wait **{e.value} seconds**\n\n"
+                "Then use: /cancel and /login again",
                 parse_mode="markdown"
             )
         except Exception as e:
             logger.error(f"Login error (phone): {e}")
-            await message.reply_text(
-                f"❌ **Error:** {str(e)}\n\n"
-                "Please try again or contact admin.",
+            await status_msg.edit_text(
+                f"❌ **Error:** Unable to send OTP\n\n"
+                "Please try again or contact admin.\n\n"
+                f"Error details: `{str(e)[:100]}`",
                 parse_mode="markdown"
             )
     
     # Step 2: OTP Code
     elif state.step == "code":
         code = message.text.strip().replace(" ", "").replace("-", "")
+        
+        # Validate code format
+        if not code.isdigit() or len(code) < 5:
+            return await message.reply_text(
+                "⚠️ **Invalid Code Format!**\n\n"
+                "OTP should be:\n"
+                "• Only numbers (5-6 digits)\n"
+                "• No spaces or dashes\n\n"
+                "📝 Example: `12345`\n\n"
+                "🔄 Check and send again",
+                parse_mode="markdown"
+            )
+        
+        status_msg = await message.reply_text("⏳ Verifying code...")
         
         try:
             # Sign in with code
@@ -160,62 +193,79 @@ async def handle_login_steps(client: Client, message: Message):
             # Clear login state
             del login_states[user_id]
             
-            await message.reply_text(
+            await status_msg.edit_text(
                 "🎉 **Login Successful!**\n\n"
-                "✅ Your session has been saved securely\n"
-                "✅ You can now download restricted content\n\n"
-                "🚀 **What's Next?**\n"
-                "• Send any Telegram link to download\n"
+                "✅ Session saved securely\n"
+                "✅ Ready to download restricted content\n\n"
+                "🚀 **Start Using:**\n"
+                "• Send any Telegram link\n"
                 "• Use /batch for bulk downloads\n"
-                "• Use /logout to remove your session\n\n"
-                "💡 Your session is encrypted and safe!",
+                "• Use /logout to remove session\n\n"
+                "🔒 Your session is encrypted!",
                 parse_mode="markdown"
             )
             
         except SessionPasswordNeeded:
             # 2FA enabled - need password
             state.step = "password"
-            await message.reply_text(
-                "🔐 **2FA Password Required**\n\n"
-                "**Step 3/3:** Enter your Cloud Password\n\n"
-                "🔑 This is the password you set for Two-Step Verification\n\n"
-                "⚠️ **Note:** We don't store your password\n"
-                "💡 If you forgot, use /cancel and reset via Telegram settings",
+            await status_msg.edit_text(
+                "🔐 **2FA Enabled**\n\n"
+                "📝 **Step 3:** Enter Cloud Password\n\n"
+                "🔑 This is your Two-Step Verification password\n\n"
+                "⚠️ We don't store passwords\n"
+                "💡 Forgot? Reset in Telegram Settings",
                 parse_mode="markdown"
             )
             
         except PhoneCodeInvalid:
-            await message.reply_text(
-                "❌ **Invalid OTP Code!**\n\n"
-                "Please check and try again:\n"
-                "• Code copied correctly?\n"
-                "• No extra spaces?\n"
-                "• Code format: `12345`\n\n"
-                "⏰ Send the code again (you have time!)",
+            # Create resend button
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Resend OTP", callback_data=f"resend_otp_{user_id}")]
+            ])
+            
+            await status_msg.edit_text(
+                "❌ **Wrong OTP Code!**\n\n"
+                "Please check:\n"
+                "• Copied correctly?\n"
+                "• Latest code?\n"
+                "• No extra characters?\n\n"
+                "📝 Format: `12345`\n\n"
+                "🔄 Send code again or click Resend",
+                reply_markup=buttons,
                 parse_mode="markdown"
             )
             
         except PhoneCodeExpired:
-            await state.client.disconnect()
-            del login_states[user_id]
-            await message.reply_text(
+            # Offer to resend
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Get New OTP", callback_data=f"resend_otp_{user_id}")],
+                [InlineKeyboardButton("❌ Cancel", callback_data="close_btn")]
+            ])
+            
+            await status_msg.edit_text(
                 "⏱️ **OTP Expired!**\n\n"
-                "The code has expired. Please start again:\n\n"
-                "Use /login to get a fresh OTP",
+                "The code has timed out.\n\n"
+                "🔄 Click 'Get New OTP' to receive a fresh code\n\n"
+                "Or /cancel and /login again",
+                reply_markup=buttons,
                 parse_mode="markdown"
             )
             
         except Exception as e:
             logger.error(f"Login error (code): {e}")
-            await message.reply_text(
-                f"❌ **Error:** {str(e)}\n\n"
-                "Please use /login to start again.",
+            await status_msg.edit_text(
+                f"❌ **Verification Error**\n\n"
+                "Unable to verify code.\n\n"
+                "🔄 Try again or /cancel and /login fresh\n\n"
+                f"Error: `{str(e)[:100]}`",
                 parse_mode="markdown"
             )
     
-    # Step 3: 2FA Password (if needed)
+    # Step 3: 2FA Password
     elif state.step == "password":
         password = message.text.strip()
+        
+        status_msg = await message.reply_text("⏳ Checking password...")
         
         try:
             # Check password
@@ -233,21 +283,20 @@ async def handle_login_steps(client: Client, message: Message):
             # Clear state
             del login_states[user_id]
             
-            await message.reply_text(
+            await status_msg.edit_text(
                 "🎉 **Login Successful!**\n\n"
-                "✅ Your session has been saved securely\n"
-                "✅ 2FA verified successfully\n\n"
-                "🚀 **Ready to use!**\n"
-                "Send any Telegram link to start downloading!",
+                "✅ Session saved with 2FA\n"
+                "✅ Fully authenticated\n\n"
+                "🚀 **Ready!** Send links to download!",
                 parse_mode="markdown"
             )
             
         except PasswordHashInvalid:
-            await message.reply_text(
+            await status_msg.edit_text(
                 "❌ **Wrong Password!**\n\n"
-                "Please try again or:\n"
-                "• /cancel to stop\n"
-                "• Reset password in Telegram Settings → Privacy",
+                "🔄 Try again\n"
+                "🚪 /cancel to stop\n\n"
+                "💡 Reset: Telegram Settings → Privacy & Security → Two-Step Verification",
                 parse_mode="markdown"
             )
             
@@ -255,13 +304,62 @@ async def handle_login_steps(client: Client, message: Message):
             logger.error(f"Login error (password): {e}")
             await state.client.disconnect()
             del login_states[user_id]
-            await message.reply_text(
-                f"❌ **Error:** {str(e)}\n\n"
-                "Please use /login to try again.",
+            await status_msg.edit_text(
+                f"❌ **Error:** Password verification failed\n\n"
+                "Use /login to try again",
                 parse_mode="markdown"
             )
 
-# --- Cancel Login ---
+# --- Resend OTP Callback ---
+
+@Client.on_callback_query(filters.regex("^resend_otp_"))
+async def resend_otp_callback(client: Client, callback_query):
+    user_id = int(callback_query.data.split("_")[-1])
+    
+    # Security check
+    if callback_query.from_user.id != user_id:
+        return await callback_query.answer("❌ Not authorized!", show_alert=True)
+    
+    if user_id not in login_states:
+        return await callback_query.answer("❌ Login session expired. Use /login", show_alert=True)
+    
+    state = login_states[user_id]
+    
+    # Rate limit check
+    if state.code_sent_time and (time.time() - state.code_sent_time) < 30:
+        remaining = 30 - int(time.time() - state.code_sent_time)
+        return await callback_query.answer(
+            f"⏳ Please wait {remaining} seconds before resending",
+            show_alert=True
+        )
+    
+    try:
+        # Resend code
+        sent_code = await state.client.send_code(state.phone)
+        state.phone_code_hash = sent_code.phone_code_hash
+        state.code_sent_time = time.time()
+        state.resend_count += 1
+        
+        await callback_query.answer("✅ New OTP sent!", show_alert=False)
+        
+        await callback_query.message.edit_text(
+            f"✅ **New OTP Sent! (Resend #{state.resend_count})**\n\n"
+            f"📱 Check Telegram on **{state.phone}**\n\n"
+            "📝 Send the new code when you receive it\n\n"
+            "⏰ Valid for 3-5 minutes",
+            parse_mode="markdown"
+        )
+        
+    except FloodWait as e:
+        await callback_query.answer(
+            f"⏳ Too many requests! Wait {e.value}s",
+            show_alert=True
+        )
+    except Exception as e:
+        logger.error(f"Resend OTP error: {e}")
+        await callback_query.answer("❌ Failed to resend. Try /login again", show_alert=True)
+
+# --- Cancel & Logout (same as before) ---
 
 @Client.on_message(filters.command("cancel") & filters.private)
 async def cancel_login(client: Client, message: Message):
@@ -270,25 +368,21 @@ async def cancel_login(client: Client, message: Message):
     if user_id in login_states:
         state = login_states[user_id]
         
-        # Disconnect client if exists
         if state.client:
             try:
                 await state.client.disconnect()
             except:
                 pass
         
-        # Clear state
         del login_states[user_id]
         
         await message.reply_text(
-            "❌ **Login Process Cancelled**\n\n"
+            "❌ **Login Cancelled**\n\n"
             "Use /login to start again anytime.",
             parse_mode="markdown"
         )
     else:
-        await message.reply_text("No active login process to cancel.")
-
-# --- Logout Command ---
+        await message.reply_text("No active process to cancel.")
 
 @Client.on_message(filters.command("logout") & filters.private)
 async def logout_command(client: Client, message: Message):
@@ -301,17 +395,12 @@ async def logout_command(client: Client, message: Message):
     
     await message.reply_text(
         "🚪 **Logout Confirmation**\n\n"
-        "Are you sure you want to logout?\n\n"
-        "⚠️ **This will:**\n"
-        "• Remove your saved session\n"
-        "• You won't be able to download restricted content\n"
-        "• You'll need to /login again to use the bot\n\n"
-        "💡 You can login again anytime!",
+        "Remove your saved session?\n\n"
+        "⚠️ You'll need to /login again",
         reply_markup=buttons,
         parse_mode="markdown"
     )
 
-# Handle logout callback
 @Client.on_callback_query(filters.regex("logout_confirm"))
 async def handle_logout(client: Client, callback_query):
     user_id = callback_query.from_user.id
@@ -319,10 +408,10 @@ async def handle_logout(client: Client, callback_query):
     await db.set_session(user_id, None)
     
     await callback_query.message.edit_text(
-        "✅ **Logged Out Successfully!**\n\n"
-        "Your session has been removed.\n\n"
-        "Use /login to login again anytime.",
+        "✅ **Logged Out!**\n\n"
+        "Session removed successfully.\n\n"
+        "Use /login anytime to login again.",
         parse_mode="markdown"
     )
     
-    await callback_query.answer("Logged out successfully!", show_alert=False)
+    await callback_query.answer("Logged out!", show_alert=False)
