@@ -1,8 +1,4 @@
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
-
-
+# Custom Save Restricted Bot
 
 import os
 import asyncio
@@ -63,7 +59,7 @@ REACTIONS = [
     "🤓", "😎", "🏆", "🔥", "🤭", "🌚", "🆒", "👻", "😁"
 ]
 
-PROGRESS_BAR_DASHBOARD  = """\
+PROGRESS_BAR_DASHBOARD  = """
 <blockquote>
 ✦ <code>{bar}</code> • <b>{percentage:.1f}%</b><br>
 ››  <b>Speed</b> • <code>{speed}/s</code><br>
@@ -181,10 +177,6 @@ async def send_start(client: Client, message: Message):
         ],
         [
              InlineKeyboardButton("⚙️ Settings", callback_data="settings_btn")
-        ],
-        [
-            InlineKeyboardButton('📢 Official Channel', url='https://t.me/RexBots_Official'),
-            InlineKeyboardButton('👨‍💻 Developer', url='https://t.me/about_zani/143')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(buttons)
@@ -193,7 +185,7 @@ async def send_start(client: Client, message: Message):
         chat_id=message.chat.id,
         text=(
             f"<blockquote><b>👋 Welcome {message.from_user.mention}!</b></blockquote>\n\n"
-            "<b>I am the Advanced Save Restricted Content Bot by RexBots.</b>\n\n"
+            "<b>I am the Advanced Save Restricted Content Bot.</b>\n\n"
             "<blockquote><b>🚀 What I Can Do:</b>\n"
             "<b>‣ Save Restricted Post (Text, Media, Files)</b>\n"
             "<b>‣ Support Private & Public Channels</b>\n"
@@ -204,14 +196,6 @@ async def send_start(client: Client, message: Message):
         reply_to_message_id=message.id,
         parse_mode=enums.ParseMode.HTML
     )
-
-    # try:
-    #     await message.react(
-    #         emoji=random.choice(REACTIONS),
-    #         big=True
-    #     )
-    # except Exception as e:
-    #     print(f"Reaction failed: {e}")
 
 # -------------------
 # Help command (standalone)
@@ -339,8 +323,6 @@ async def handle_private(client: Client, acc, message: Message, chatid: int, msg
         await client.send_message(message.chat.id, f"Session Token Invalid/Expired. Please /login again.\nError: {e}")
         return
     except Exception as e:
-        # Handle PeerIdInvalid (which might come as generic Exception or RPCError)
-        # We try to refresh dialogs to learn about the peer.
         logger.warning(f"Error fetching message: {e}. Refreshing dialogs...")
         try:
             async for dialog in acc.get_dialogs(limit=None):
@@ -355,9 +337,6 @@ async def handle_private(client: Client, acc, message: Message, chatid: int, msg
         except Exception as e2:
             logger.error(f"Retry failed: {e2}")
             return
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
 
     if msg.empty:
         return
@@ -619,8 +598,7 @@ async def button_callbacks(client: Client, callback_query):
         about_text = (
             "<b><blockquote>‣ ℹ️ 𝐁𝐎𝐓 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍</blockquote>\n\n"
             "<i>• 🤖 𝐍𝐚𝐦𝐞 : 𝐒𝐚𝐯𝐞 𝐑𝐞𝐬𝐭𝐫𝐢𝐜𝐭𝐞𝐝 𝐂𝐨𝐧𝐭𝐞𝐧𝐭\n"
-            "• 👨‍💻 𝐎𝐰𝐧𝐞𝐫 : <a href='https://t.me/RexBots_Official'>𝐑𝐞𝐱𝐁𝐨𝐭𝐬</a>\n"
-            "• 📡 𝐔𝐩𝐝𝐚𝐭𝐞𝐬 : <a href='https://t.me/RexBots_Official'>𝐑𝐞𝐱𝐁𝐨𝐭𝐬 𝐎𝐟𝐟𝐢𝐜𝐢𝐚𝐥</a>\n"
+            "• 👨‍💻 𝐎𝐰𝐧𝐞𝐫 : <a href='https://t.me/Anonononononon'>@Anonononononon</a>\n"
             "• 🐍 𝐋𝐚𝐧𝐠𝐮𝐚𝐠𝐞 : <a href='https://www.python.org/'>𝐏𝐲𝐭𝐡𝐨𝐧 𝟑</a>\n"
             "• 📚 𝐋𝐢𝐛𝐫𝐚𝐫𝐲 : <a href='https://docs.pyrogram.org/'>𝐏𝐲𝐫𝐨𝐠𝐫𝐚𝐦</a>\n"
             "• 🗄 𝐃𝐚𝐭𝐚𝐛𝐚𝐬𝐞 : <a href='https://www.mongodb.com/'>𝐌𝐨𝐧𝐠𝐨𝐃𝐁</a>\n"
@@ -628,9 +606,6 @@ async def button_callbacks(client: Client, callback_query):
         )
 
         about_buttons = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("📢 Join Channel", url="https://t.me/RexBots_Official")
-            ],
             [
                 InlineKeyboardButton("❌ Close", callback_data="close_btn"),
                 InlineKeyboardButton("🔙 Back", callback_data="start_btn")
@@ -655,8 +630,7 @@ async def button_callbacks(client: Client, callback_query):
                 InlineKeyboardButton("ℹ️ About Bot", callback_data="about_btn")
             ],
             [
-                InlineKeyboardButton('📢 Official Channel', url='https://t.me/RexBots_Official'),
-                InlineKeyboardButton('👨‍💻 Developer', url='https://t.me/RexBots_Official')
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings_btn")
             ]
         ])
         await client.edit_message_text(
@@ -664,7 +638,7 @@ async def button_callbacks(client: Client, callback_query):
             message_id=message.id,
             text=(
                 f"<blockquote><b>👋 Welcome {callback_query.from_user.mention}!</b></blockquote>\n\n"
-                "<b>I am the Advanced Save Restricted Content Bot by RexBots.</b>\n\n"
+                "<b>I am the Advanced Save Restricted Content Bot.</b>\n\n"
                 "<blockquote><b>🚀 What I Can Do:</b>\n"
                 "<b>‣ Save Restricted Post (Text, Media, Files)</b>\n"
                 "<b>‣ Support Private & Public Channels</b>\n"
@@ -698,13 +672,3 @@ async def button_callbacks(client: Client, callback_query):
     elif data == "close_btn":
         await client.delete_messages(message.chat.id, [message.id])
         await callback_query.answer()
-
-
-# Don't remove Credits
-# Rexbots
-# Developer Telegram @RexBots_Official
-# Update channel - @RexBots_Official
-
-# Rexbots
-# Don't Remove Credit
-# Telegram Channel @RexBots_Official
