@@ -1,7 +1,7 @@
 # Custom Save Restricted Bot - Stable Session Handler
 
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from database.db import db
 from config import ADMINS
 from logger import LOGGER
@@ -20,7 +20,7 @@ async def login_command(client: Client, message: Message):
         buttons = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🚪 Logout", callback_data="logout_confirm"),
-                InlineKeyboardButton("❌ Cancel", callback_data="close_btn")
+                InlineKeyboardButton("❌ Close", callback_data="close_btn")
             ]
         ])
         return await message.reply_text(
@@ -124,10 +124,10 @@ async def logout_command(client: Client, message: Message):
         parse_mode="markdown"
     )
 
-# --- Handle Logout Callback ---
+# --- Callback Handlers ---
 
-@Client.on_callback_query(filters.regex("logout_confirm"))
-async def handle_logout(client: Client, callback_query):
+@Client.on_callback_query(filters.regex("^logout_confirm$"))
+async def handle_logout(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     
     await db.set_session(user_id, None)
@@ -140,6 +140,14 @@ async def handle_logout(client: Client, callback_query):
     )
     
     await callback_query.answer("Logged out!", show_alert=False)
+
+@Client.on_callback_query(filters.regex("^close_btn$"))
+async def handle_close(client: Client, callback_query: CallbackQuery):
+    try:
+        await callback_query.message.delete()
+    except:
+        pass
+    await callback_query.answer("Closed!", show_alert=False)
 
 # --- Cancel Command ---
 
